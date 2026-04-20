@@ -27,6 +27,8 @@ body{font-family:'DM Sans',sans-serif;color:var(--text);overflow-x:hidden;-webki
   @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
   @keyframes orb1{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-20px)}}
   @keyframes orb2{0%,100%{transform:translate(0,0)}50%{transform:translate(-20px,30px)}}
+  @keyframes cursorBlink{0%,49%{opacity:1}50%,99%{opacity:0}100%{opacity:1}}
+  @keyframes badgeFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 }
 
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px;}
@@ -59,13 +61,10 @@ const svc = (s) => s === "high" ? "var(--high)" : s === "medium" ? "var(--med)" 
 const svbg = (s) => s === "high" ? "var(--high-bg)" : s === "medium" ? "var(--med-bg)" : "var(--low-bg)";
 const svl = (s) => s === "high" ? "High Risk" : s === "medium" ? "Medium" : "Low Risk";
 
-// SVG Icons
 const Icons = {
   back: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   copy: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M11 5V3a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2h2" stroke="currentColor" strokeWidth="1.5"/></svg>,
   check: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  score: <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M9 5v4l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-  verdict: <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2l1.8 5.4H17l-4.7 3.4 1.8 5.4L9 13.4l-5.1 2.8 1.8-5.4L1 7.4h6.2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
   challenge: <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2L16 15H2L9 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M9 8v3M9 13v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   upside: <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 15V3M3 9l6-6 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   needs: <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.4"/><path d="M6 9h6M9 6v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
@@ -79,7 +78,6 @@ const Icons = {
   free: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1a6 6 0 100 12A6 6 0 007 1z" stroke="currentColor" strokeWidth="1.2"/><path d="M5 7l2 2 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   premium: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1l1.5 4H13L9.5 8l1.5 4L7 10l-4 2 1.5-4L1 5h4.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>,
   bolt: <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8 1L3 8h4l-1 5 6-7H8l1-5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/></svg>,
-  warning: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1L13 12H1L7 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/><path d="M7 6v2.5M7 10.5v.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   flag: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 4-10 4V2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/><path d="M2 13V2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   external: <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M5 2H2a1 1 0 00-1 1v7a1 1 0 001 1h7a1 1 0 001-1V7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M8 1h3v3M11 1L6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
@@ -179,7 +177,7 @@ function InputPage({ question, setQuestion, depth, setDepth, onSubmit, onBack, e
   useEffect(() => { ref.current?.focus(); }, []);
   useEffect(() => { if (error) errRef.current?.focus(); }, [error]);
   const can = !!question.trim();
-  const hint = isMac ? "⌘+Enter" : "Ctrl+Enter";
+  const hint = isMac ? "Cmd+Enter" : "Ctrl+Enter";
   return (
     <main id="main-content" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>
       <div style={{ width: "100%", maxWidth: "540px", display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -207,7 +205,7 @@ function InputPage({ question, setQuestion, depth, setDepth, onSubmit, onBack, e
             onBlur={e => { e.target.style.borderColor = error ? "var(--high)" : "var(--border)"; }}/>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             {error
-              ? <span id="q-err" ref={errRef} role="alert" tabIndex={-1} style={{ fontSize: "12px", color: "var(--high)" }}>⚠ {error}</span>
+              ? <span id="q-err" ref={errRef} role="alert" tabIndex={-1} style={{ fontSize: "12px", color: "var(--high)" }}>{error}</span>
               : <span id="q-hint" style={{ fontSize: "12px", color: "var(--faint)" }}>{hint} to submit</span>
             }
             <span style={{ fontSize: "12px", color: "var(--faint)" }} aria-live="polite">{question.length} / 600</span>
@@ -263,7 +261,6 @@ function Card({ children, style = {} }) {
 }
 
 function ScoreSection({ r }) {
-  const color = sc(r.realityScore);
   return (
     <div className="section">
       <Card style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", textAlign: "center" }}>
@@ -579,7 +576,7 @@ const TIPS_BANK = {
     { title: "Copy the best UX", body: "Inspiration from successful apps isn't theft — it's research. Users love familiarity. Original UI often confuses." },
   ],
   creative: [
-    { title: "Post consistently over posting perfectly", body: "An account that posts 3× a week mediocrely will beat a once-a-week perfectionist within 6 months, every time." },
+    { title: "Post consistently over posting perfectly", body: "An account that posts 3x a week mediocrely will beat a once-a-week perfectionist within 6 months, every time." },
     { title: "Study your own analytics ruthlessly", body: "Your best-performing 20% of content shows exactly what your audience wants. Double down on that, kill the rest." },
     { title: "Repurpose everything", body: "One video = 5 clips = 10 tweets = 1 newsletter. Maximal output from minimal input is the creator leverage game." },
     { title: "Batch create", body: "Record 4 videos in one session, not one video four times. Context switching kills creative momentum." },
@@ -590,7 +587,7 @@ const TIPS_BANK = {
     { title: "Sleep is the multiplier", body: "Sub-7-hour sleep wipes out 50%+ of workout gains and kills willpower for nutrition. Fix sleep before anything else." },
     { title: "Track for 4 weeks, then automate", body: "Log everything at first to build awareness, then let habits run on autopilot. Tracking long-term becomes obsessive." },
     { title: "Progress photos over scales", body: "The scale lies — water, muscle, and food weight fluctuate 2–4 lbs daily. Photos and measurements tell the real story." },
-    { title: "Find your identity lever", body: "Say 'I am someone who trains' not 'I'm trying to work out.' Identity-based habits stick 3× longer than goal-based ones." },
+    { title: "Find your identity lever", body: "Say 'I am someone who trains' not 'I'm trying to work out.' Identity-based habits stick 3x longer than goal-based ones." },
   ],
   social: [
     { title: "Hook in the first 3 seconds", body: "On every platform, the algorithm judges content in the first seconds. If you don't grab attention instantly, nothing else matters." },
@@ -599,7 +596,7 @@ const TIPS_BANK = {
     { title: "Stories convert, posts grow", body: "Stories/close-contact formats build trust and drive DMs. Feed posts drive discovery. Use both with different goals." },
   ],
   learning: [
-    { title: "Active recall over passive review", body: "Testing yourself is 3× more effective for retention than rereading notes. Use Anki or write practice questions." },
+    { title: "Active recall over passive review", body: "Testing yourself is 3x more effective for retention than rereading notes. Use Anki or write practice questions." },
     { title: "Teach what you learn immediately", body: "The Feynman Technique — explain the concept simply to someone else within 24h of learning it. Gaps become obvious fast." },
     { title: "Time-box and protect your sessions", body: "90-minute focused sessions beat 4 hours of distracted study. Treat learning time like a meeting you can't cancel." },
     { title: "Build while you learn", body: "For any skill — code, design, writing — do a real project from week one, not week twelve. Theory without practice evaporates." },
@@ -617,7 +614,7 @@ function TipsSection({ category }) {
   const tips = TIPS_BANK[cat] || TIPS_BANK.other;
   return (
     <div className="section">
-      <SectionHeader icon={Icons.tips} title="Insider Tips & Hacks" subtitle="What experienced people know that you don't yet" />
+      <SectionHeader icon={Icons.tips} title="Insider Tips" subtitle="What experienced people know that you don't yet" />
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {tips.map((t, i) => (
           <Card key={i}>
@@ -714,7 +711,7 @@ function HistoryPanel({ history, onClose }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>Past checks</span>
           <button ref={closeRef} onClick={onClose} aria-label="Close panel"
-            style={{ background: "none", border: "none", color: "var(--faint)", cursor: "pointer", fontSize: "20px", lineHeight: 1, minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+            style={{ background: "none", border: "none", color: "var(--faint)", cursor: "pointer", fontSize: "20px", lineHeight: 1, minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>x</button>
         </div>
         {history.length === 0
           ? <p style={{ color: "var(--faint)", fontSize: "13px" }}>No checks yet.</p>
@@ -736,35 +733,99 @@ function HistoryPanel({ history, onClose }) {
 }
 
 function HomePage({ onStart, history, onHist }) {
-  const [vis, setVis] = useState(false);
   const reduced = useReducedMotion();
-  useEffect(() => { const t = setTimeout(() => setVis(true), 50); return () => clearTimeout(t); }, []);
+  const TITLE = "BeforeUstart";
+  const [typed, setTyped] = useState(reduced ? TITLE.length : 0);
+  const [showCursor, setShowCursor] = useState(!reduced);
+  const [showLabel, setShowLabel] = useState(reduced);
+  const [showSub, setShowSub] = useState(reduced);
+  const [showBadges, setShowBadges] = useState(reduced);
+  const [showBtn, setShowBtn] = useState(reduced);
+
+  useEffect(() => {
+    if (reduced) return;
+    const timers = [];
+    timers.push(setTimeout(() => setShowLabel(true), 200));
+    TITLE.split("").forEach((_, i) => {
+      timers.push(setTimeout(() => setTyped(i + 1), 480 + i * 62));
+    });
+    const doneAt = 480 + (TITLE.length - 1) * 62;
+    timers.push(setTimeout(() => setShowSub(true), doneAt + 280));
+    timers.push(setTimeout(() => setShowBadges(true), doneAt + 520));
+    timers.push(setTimeout(() => setShowCursor(false), doneAt + 700));
+    timers.push(setTimeout(() => setShowBtn(true), doneAt + 820));
+    return () => timers.forEach(clearTimeout);
+  }, [reduced]);
+
+  const BADGES = ["No sugarcoating", "Honest by design"];
+
+  const tr = (show, delay = "0s") => ({
+    opacity: show ? 1 : 0,
+    transform: show ? "translateY(0)" : "translateY(14px)",
+    transition: reduced ? "none" : `opacity 0.55s ${delay} ease, transform 0.55s ${delay} ease`,
+  });
+
   return (
-    <main id="main-content" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "40px 20px" }}>
+    <main id="main-content" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "40px 24px" }}>
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ position: "absolute", top: "20%", left: "15%", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle,rgba(124,106,247,0.12) 0%,transparent 70%)", filter: "blur(60px)", animation: reduced ? "none" : "orb1 10s ease-in-out infinite" }}/>
         <div style={{ position: "absolute", bottom: "20%", right: "15%", width: "350px", height: "350px", borderRadius: "50%", background: "radial-gradient(circle,rgba(124,106,247,0.07) 0%,transparent 70%)", filter: "blur(60px)", animation: reduced ? "none" : "orb2 13s ease-in-out infinite" }}/>
       </div>
-      <div style={{ position: "relative", zIndex: 2, textAlign: "center", maxWidth: "520px", width: "100%",
-        opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(16px)", transition: reduced ? "none" : "opacity 0.6s ease, transform 0.6s ease" }}>
-        <div style={{ fontSize: "10px", letterSpacing: "4px", color: "var(--faint)", textTransform: "uppercase", marginBottom: "24px" }}>Reality check tool</div>
-        <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: "clamp(48px,12vw,88px)", fontWeight: 400, letterSpacing: "-2px", lineHeight: 1, marginBottom: "20px" }}>BeforeUstart</h1>
-        <p style={{ fontSize: "16px", color: "var(--muted)", fontWeight: 300, lineHeight: 1.7, maxWidth: "360px", margin: "0 auto 40px" }}>
-          Know what you're actually getting into.<br/>No fluff. Just reality.
+
+      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: "560px" }}>
+        <div style={{ marginBottom: "20px", ...tr(showLabel) }}>
+          <span style={{ fontSize: "10px", letterSpacing: "5px", color: "var(--faint)", textTransform: "uppercase", fontFamily: "'DM Sans',sans-serif" }}>
+            A Reality Check Tool
+          </span>
+        </div>
+
+        <h1 aria-label="BeforeUstart" style={{ fontFamily: "'DM Serif Display',serif", fontSize: "clamp(52px,14vw,88px)", fontWeight: 400, letterSpacing: "-2px", lineHeight: 1, marginBottom: "28px", display: "flex", alignItems: "baseline" }}>
+          <span>{TITLE.slice(0, typed)}</span>
+          {showCursor && (
+            <span aria-hidden="true" style={{ display: "inline-block", width: "3px", height: "0.82em", background: "var(--accent-light)", marginLeft: "4px", verticalAlign: "baseline", borderRadius: "1px", animation: reduced ? "none" : "cursorBlink 0.85s step-start infinite" }} />
+          )}
+        </h1>
+
+        <p style={{ fontSize: "16px", color: "var(--muted)", fontWeight: 300, lineHeight: 1.75, maxWidth: "400px", marginBottom: "32px", ...tr(showSub) }}>
+          Before you leap — know what you're actually jumping into. No fluff. No motivation. Just reality.
         </p>
-        <button onClick={onStart}
-          style={{ padding: "16px 40px", background: "var(--accent)", border: "none", borderRadius: "10px", color: "#fff", fontSize: "14px", fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "opacity 0.2s", minHeight: "52px" }}
-          onMouseOver={e => e.currentTarget.style.opacity="0.85"}
-          onMouseOut={e => e.currentTarget.style.opacity="1"}>
-          Check your idea →
-        </button>
-        {history.length > 0 && (
-          <div style={{ marginTop: "16px" }}>
-            <button onClick={onHist} style={{ background: "none", border: "none", color: "var(--faint)", fontSize: "12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "1px", textTransform: "uppercase", minHeight: "44px" }}>
-              {history.length} past check{history.length !== 1 ? "s" : ""} →
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "40px" }}>
+          {BADGES.map((b, i) => (
+            <span key={b} style={{
+              padding: "9px 18px",
+              borderRadius: "999px",
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.03)",
+              fontSize: "13px",
+              color: "var(--muted)",
+              fontWeight: 400,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+              opacity: showBadges ? 1 : 0,
+              transform: showBadges ? "translateY(0)" : "translateY(10px)",
+              transition: reduced ? "none" : `opacity 0.5s ${i * 0.1}s ease, transform 0.5s ${i * 0.1}s ease`,
+            }}>
+              {b}
+              <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: "7px" }}>&#9670;</span>
+            </span>
+          ))}
+        </div>
+
+        <div style={{ ...tr(showBtn) }}>
+          <button onClick={onStart}
+            style={{ width: "100%", padding: "18px 40px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "14px", color: "var(--accent-light)", fontSize: "15px", fontWeight: 500, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "border-color 0.2s, background 0.2s", minHeight: "56px", letterSpacing: "0.2px" }}
+            onMouseOver={e => { e.currentTarget.style.borderColor = "var(--accent-border)"; e.currentTarget.style.background = "var(--accent-dim)"; }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "transparent"; }}>
+            Ask the real question &rarr;
+          </button>
+          {history.length > 0 && (
+            <button onClick={onHist} style={{ display: "block", margin: "14px auto 0", background: "none", border: "none", color: "var(--faint)", fontSize: "12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "1px", textTransform: "uppercase", minHeight: "44px" }}>
+              {history.length} past check{history.length !== 1 ? "s" : ""} &rarr;
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </main>
   );
