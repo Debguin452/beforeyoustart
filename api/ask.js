@@ -79,7 +79,7 @@ export default async function handler(req, res) {
   const depth = ALLOWED_DEPTHS.has(rawDepth) ? rawDepth : "standard";
   const question = sanitiseQuestion(rawQuestion);
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "Service temporarily unavailable.", status: 500 });
   }
@@ -92,18 +92,18 @@ export default async function handler(req, res) {
 
   const depthInstruction = DEPTH_PROMPT[depth];
 
-  const prompt = `You are BeforeUstart — a brutally honest AI reality check tool. User wants to know about: """${question}"""
+  const systemPrompt = `You are BeforeUstart — a brutally honest AI reality check tool. Be specific, concrete, and honest. No sugarcoating. No motivation speeches. Like a wise experienced friend who tells it like it is. Respond ONLY with a valid JSON object, no markdown, no backticks, no explanation.`;
+
+  const userPrompt = `User wants a reality check on: """${question}"""
 
 ${depthInstruction}
 
-Be specific, concrete, and honest. No sugarcoating. No motivation speeches. Like a wise experienced friend who tells it like it is.
-
-Respond ONLY with a valid JSON object, no markdown, no backticks:
+Respond ONLY with this JSON structure:
 {
   "category": "business|creative|tech|health|social|learning|other",
   "categoryEmoji": "single emoji",
-  "realityScore": <10-90, where 10=extremely hard/risky, 90=fairly straightforward>,
-  "scoreLabel": "concise honest label e.g. 'Harder than it looks'",
+  "realityScore": <integer 10-90, where 10=extremely hard/risky, 90=fairly straightforward>,
+  "scoreLabel": "concise honest label e.g. Harder than it looks",
   "verdict": "One specific honest sentence about this exact endeavor",
   "challenges": [{"title":"short title","detail":"2-3 honest sentences","severity":"high|medium|low"}],
   "opportunities": [{"title":"short title","detail":"1-2 sentences on real upside"}],
@@ -119,27 +119,31 @@ Respond ONLY with a valid JSON object, no markdown, no backticks:
 }`;
 
   try {
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "llama-3.3-70b-versatile",
         max_tokens: 1500,
-        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
       }),
     });
 
-    if (!anthropicRes.ok) {
-      await anthropicRes.text();
+    if (!groqRes.ok) {
+      await groqRes.text();
       return res.status(502).json({ error: "AI service error. Please try again.", status: 502 });
     }
 
-    const data = await anthropicRes.json();
-    const raw = data.content?.[0]?.text || "";
+    const data = await groqRes.json();
+    const raw = data.choices?.[0]?.message?.content || "";
     const clean = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const parsed = JSON.parse(clean);
 
