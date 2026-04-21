@@ -24,32 +24,19 @@ function getRateLimit(ip) {
 }
 
 function sanitiseQuestion(raw) {
-  return raw
-    .trim()
-    .slice(0, MAX_QUESTION_LENGTH)
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+  return raw.trim().slice(0, MAX_QUESTION_LENGTH).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
 }
 
 function validateResponse(parsed) {
-  const VALID_CATEGORIES = new Set(["business", "creative", "tech", "health", "social", "learning", "other"]);
-  const VALID_SEVERITIES = new Set(["high", "medium", "low"]);
   if (typeof parsed !== "object" || parsed === null) return false;
-  if (!VALID_CATEGORIES.has(parsed.category)) return false;
-  if (typeof parsed.categoryEmoji !== "string") return false;
+  if (typeof parsed.category !== "string") return false;
   if (typeof parsed.realityScore !== "number" || parsed.realityScore < 10 || parsed.realityScore > 90) return false;
-  if (typeof parsed.scoreLabel !== "string") return false;
   if (typeof parsed.verdict !== "string") return false;
   if (!Array.isArray(parsed.challenges)) return false;
-  for (const c of parsed.challenges) {
-    if (typeof c.title !== "string" || typeof c.detail !== "string") return false;
-    if (!VALID_SEVERITIES.has(c.severity)) return false;
-  }
   if (!Array.isArray(parsed.opportunities)) return false;
   if (typeof parsed.requirements !== "object" || parsed.requirements === null) return false;
   if (!Array.isArray(parsed.plan)) return false;
   if (typeof parsed.mindset !== "string") return false;
-  if (!Array.isArray(parsed.successFactors)) return false;
-  if (!Array.isArray(parsed.redFlags)) return false;
   return true;
 }
 
@@ -59,11 +46,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed", status: 405 });
   }
 
-  const ip =
-    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    req.socket?.remoteAddress ||
-    "unknown";
-
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
   const requestCount = getRateLimit(ip);
   if (requestCount > RATE_LIMIT_MAX) {
     res.setHeader("Retry-After", "60");
@@ -71,69 +54,76 @@ export default async function handler(req, res) {
   }
 
   const { question: rawQuestion, depth: rawDepth } = req.body || {};
-
   if (!rawQuestion || typeof rawQuestion !== "string" || rawQuestion.trim().length < 5) {
     return res.status(400).json({ error: "A valid question is required (minimum 5 characters).", status: 400 });
   }
 
   const depth = ALLOWED_DEPTHS.has(rawDepth) ? rawDepth : "standard";
   const question = sanitiseQuestion(rawQuestion);
-
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "Service temporarily unavailable.", status: 500 });
-  }
+  if (!apiKey) return res.status(500).json({ error: "Service temporarily unavailable.", status: 500 });
 
   const DEPTH_PROMPT = {
-    quick: "Concise check: 3-4 challenges, 2 opportunities.",
-    standard: "Thorough check: 5-6 challenges, 3-4 opportunities, full details.",
-    deep: "Deep analysis: 7-8 challenges, 4-5 opportunities, detailed plan and requirements.",
+    quick: "Concise: 3-4 challenges, 2 opportunities. Brief descriptions.",
+    standard: "Thorough: 5-6 challenges, 3-4 opportunities, full details.",
+    deep: "Deep: 7-8 challenges, 4-5 opportunities, detailed plan.",
   };
 
-  const depthInstruction = DEPTH_PROMPT[depth];
+  const systemPrompt = `You are BeforeUstart — a brutally honest AI reality check tool. Be specific, concrete, honest. No sugarcoating. Like a wise friend who tells it like it is. Detect user intent and scope your response to what genuinely helps. Respond ONLY with valid JSON, no markdown, no backticks.`;
 
-  const systemPrompt = `You are BeforeUstart — a brutally honest AI reality check tool. Be specific, concrete, and honest. No sugarcoating. No motivation speeches. Like a wise experienced friend who tells it like it is. Respond ONLY with a valid JSON object, no markdown, no backticks, no explanation.`;
+  const userPrompt = `Reality check request: """${question}"""
 
-  const userPrompt = `User wants a reality check on: """${question}"""
+${DEPTH_PROMPT[depth]}
 
-${depthInstruction}
+Detect: Is this educational/learning? Business? Tech/build? Health? Creative? Life decision?
 
-Respond ONLY with this JSON structure:
+Return this exact JSON (no extras):
 {
   "category": "business|creative|tech|health|social|learning|other",
   "categoryEmoji": "single emoji",
-  "realityScore": <integer 10-90, where 10=extremely hard/risky, 90=fairly straightforward>,
-  "scoreLabel": "concise honest label e.g. Harder than it looks",
-  "verdict": "One specific honest sentence about this exact endeavor",
-  "challenges": [{"title":"short title","detail":"2-3 honest sentences","severity":"high|medium|low"}],
-  "opportunities": [{"title":"short title","detail":"1-2 sentences on real upside"}],
-  "requirements": {"time":"X-Y hrs/week","money":"$X-$Y or Minimal","skills":["skill1","skill2","skill3"]},
-  "plan": [
-    {"phase":"Days 1-7","focus":"Focus area","action":"Concrete specific action"},
-    {"phase":"Days 8-21","focus":"Focus area","action":"Concrete specific action"},
-    {"phase":"Days 22-30","focus":"Focus area","action":"Concrete specific action"}
-  ],
-  "mindset": "2-3 sentences on the essential mindset shift required",
-  "successFactors": ["factor1","factor2","factor3"],
-  "redFlags": ["flag1","flag2"]
-}`;
+  "isEducational": true|false,
+  "intent": "learn_skill|start_business|build_product|get_fit|create_content|career_change|life_decision|social_growth|other",
+  "intentLabel": "3-5 word label",
+  "realityScore": <10-90>,
+  "scoreLabel": "short honest label",
+  "verdict": "one specific honest sentence",
+  "timeToCompetence": "e.g. 3-6 months to basics OR null if not a learning goal",
+  "challenges": [{"title":"","detail":"","severity":"high|medium|low"}],
+  "opportunities": [{"title":"","detail":""}],
+  "requirements": {"time":"X hrs/week","money":"$X or Minimal","skills":["skill1"]},
+  "skillBreakdown": [{"skill":"","difficulty":1-10,"timeWeeks":1-52,"description":""}],
+  "plan": [{"phase":"Days 1-7","focus":"","action":""},{"phase":"Days 8-21","focus":"","action":""},{"phase":"Days 22-30","focus":"","action":""}],
+  "mindset": "2-3 sentences",
+  "successFactors": ["","",""],
+  "redFlags": ["",""],
+  "resources": {
+    "books": [{"title":"","author":"","why":"","url":"https://... or null"}],
+    "courses": [{"name":"","platform":"","url":"https://... or null","free":true,"why":""}],
+    "apps": [{"name":"","purpose":"","url":"https://... or null","free":true}],
+    "websites": [{"name":"","url":"https://...","why":""}],
+    "communities": [{"name":"","platform":"Reddit|Discord|other","url":"https://... or null","why":""}]
+  }
+}
+
+RESOURCES RULES:
+- Learning/educational goals: 2-3 books, 3-4 courses, 2-3 apps, 3-4 websites, 2 communities
+- Business goals: 1-2 books, 2-3 websites, skip courses unless vital
+- Health/fitness: 1-2 books, 2-3 apps, 1-2 websites, no courses
+- Creative work: 1-2 books, 2-3 apps, 2 websites, 2 communities
+- Quick depth: minimal resources only
+- skillBreakdown: only if skill-learning is central (max 5 skills), else empty array []
+- All URLs must be real. Use null if unsure.`;
 
   try {
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        max_tokens: 1500,
-        temperature: 0.7,
+        max_tokens: 2500,
+        temperature: 0.65,
         response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       }),
     });
 
